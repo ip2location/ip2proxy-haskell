@@ -1,7 +1,7 @@
 {-|
 Module      : IP2Proxy
 Description : IP2Proxy Haskell package
-Copyright   : (c) IP2Location, 2018
+Copyright   : (c) IP2Location, 2019
 License     : MIT
 Maintainer  : sales@ip2location.com
 Stability   : experimental
@@ -10,7 +10,7 @@ This Haskell package allows users to query an IP address to determine if it was 
 
 IP2Proxy LITE BIN databases are available for free at http://lite.ip2location.com/
 -}
-module IP2Proxy (Meta, IP2ProxyRecord(..), getModuleVersion, getPackageVersion, getDatabaseVersion, open, getAll, getCountryShort, getCountryLong, getRegion, getCity, getISP, getProxyType, isProxy) where
+module IP2Proxy (Meta, IP2ProxyRecord(..), getModuleVersion, getPackageVersion, getDatabaseVersion, open, getAll, getCountryShort, getCountryLong, getRegion, getCity, getISP, getProxyType, getDomain, getUsageType, getASN, getAS, getLastSeen, isProxy) where
 
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Lazy.Char8 as BS8
@@ -34,6 +34,16 @@ data IP2ProxyRecord = IP2ProxyRecord {
     isp :: String,
     -- | Proxy type
     proxy_type :: String,
+    -- | Domain
+    domain :: String,
+    -- | Usage type
+    usage_type :: String,
+    -- | ASN
+    asn :: String,
+    -- | AS
+    as :: String,
+    -- | Last seen
+    last_seen :: String,
     -- | Is proxy
     is_proxy :: Int
 } deriving (Show)
@@ -89,7 +99,7 @@ getMeta = do
     The 'getModuleVersion' function returns a string containing the module version.
 -}
 getModuleVersion :: String
-getModuleVersion = "1.0.0"
+getModuleVersion = "2.0.0"
 
 {-|
     The 'getPackageVersion' function returns a string containing the package version.
@@ -173,12 +183,17 @@ readcolstring contents dbtype rowoffset col = do
 
 readrecord :: BS.ByteString -> Int -> Int -> Int -> IP2ProxyRecord
 readrecord contents dbtype rowoffset mode = do
-    let country_position = [0, 2, 3, 3, 3]
-    let region_position = [0, 0, 0, 4, 4]
-    let city_position = [0, 0, 0, 5, 5]
-    let isp_position = [0, 0, 0, 0, 6]
-    let proxytype_position = [0, 0, 2, 2, 2]
-    
+    let country_position = [0, 2, 3, 3, 3, 3, 3, 3, 3]
+    let region_position = [0, 0, 0, 4, 4, 4, 4, 4, 4]
+    let city_position = [0, 0, 0, 5, 5, 5, 5, 5, 5]
+    let isp_position = [0, 0, 0, 0, 6, 6, 6, 6, 6]
+    let proxytype_position = [0, 0, 2, 2, 2, 2, 2, 2, 2]
+    let domain_position = [0, 0, 0, 0, 0, 7, 7, 7, 7]
+    let usagetype_position = [0, 0, 0, 0, 0, 0, 8, 8, 8]
+    let asn_position = [0, 0, 0, 0, 0, 0, 0, 9, 9]
+    let as_position = [0, 0, 0, 0, 0, 0, 0, 10, 10]
+    let lastseen_position = [0, 0, 0, 0, 0, 0, 0, 0, 11]
+     
     let countryshort_field = 1
     let countrylong_field = 2
     let region_field = 4
@@ -186,6 +201,11 @@ readrecord contents dbtype rowoffset mode = do
     let isp_field = 16
     let proxytype_field = 32
     let isproxy_field = 64
+    let domain_field = 128
+    let usagetype_field = 256
+    let asn_field = 512
+    let as_field = 1024
+    let lastseen_field = 2048
     
     let proxy_type = if (((.&.) mode proxytype_field) /= 0) || (((.&.) mode isproxy_field) /= 0)
         then readcolstring contents dbtype rowoffset proxytype_position
@@ -207,13 +227,33 @@ readrecord contents dbtype rowoffset mode = do
         then readcolstring contents dbtype rowoffset isp_position
         else ""
     
+    let domain = if ((.&.) mode domain_field) /= 0
+        then readcolstring contents dbtype rowoffset domain_position
+        else ""
+    
+    let usage_type = if ((.&.) mode usagetype_field) /= 0
+        then readcolstring contents dbtype rowoffset usagetype_position
+        else ""
+    
+    let asn = if ((.&.) mode asn_field) /= 0
+        then readcolstring contents dbtype rowoffset asn_position
+        else ""
+    
+    let as = if ((.&.) mode as_field) /= 0
+        then readcolstring contents dbtype rowoffset as_position
+        else ""
+    
+    let last_seen = if ((.&.) mode lastseen_field) /= 0
+        then readcolstring contents dbtype rowoffset lastseen_position
+        else ""
+    
     let is_proxy = if (country_short == "-") || (proxy_type == "-")
         then 0
-        else if proxy_type == "DCH"
+        else if (proxy_type == "DCH") || (proxy_type == "SES")
             then 2
             else 1
     
-    IP2ProxyRecord country_short country_long region city isp proxy_type is_proxy
+    IP2ProxyRecord country_short country_long region city isp proxy_type domain usage_type asn as last_seen is_proxy
 
 searchtree :: BS.ByteString -> Integer -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IP2ProxyRecord
 searchtree contents ipnum dbtype low high baseaddr colsize iptype mode = do
@@ -245,7 +285,7 @@ searchtree contents ipnum dbtype low high baseaddr colsize iptype mode = do
                         searchtree contents ipnum dbtype (mid + 1) high baseaddr colsize iptype mode
         else do
             let x = "INVALID IP ADDRESS"
-            IP2ProxyRecord x x x x x x (-1)
+            IP2ProxyRecord x x x x x x x x x x x (-1)
         
 search4 :: BS.ByteString -> Integer -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IP2ProxyRecord
 search4 contents ipnum dbtype low high baseaddr indexbaseaddr colsize mode = do
@@ -281,7 +321,7 @@ tryfirst myIP = do
 -}
 getAll :: String -> Meta -> String -> IO IP2ProxyRecord
 getAll myfile meta myip = do
-    result <- doQuery myfile meta myip 127
+    result <- doQuery myfile meta myip 4095
     return result
 
 {-|
@@ -339,6 +379,51 @@ getProxyType myfile meta myip = do
     return (show (proxy_type result))
 
 {-|
+    The 'getDomain' function returns the domain name for an IP address.
+    It takes 3 arguments; the BIN database file path (String), the metadata from 'open' function (Meta record) & either IPv4 or IPv6 address (String).
+-}
+getDomain :: String -> Meta -> String -> IO String
+getDomain myfile meta myip = do
+    result <- doQuery myfile meta myip 128
+    return (show (domain result))
+
+{-|
+    The 'getUsageType' function returns the usage type for an IP address.
+    It takes 3 arguments; the BIN database file path (String), the metadata from 'open' function (Meta record) & either IPv4 or IPv6 address (String).
+-}
+getUsageType :: String -> Meta -> String -> IO String
+getUsageType myfile meta myip = do
+    result <- doQuery myfile meta myip 256
+    return (show (usage_type result))
+
+{-|
+    The 'getASN' function returns the autonomous system number for an IP address.
+    It takes 3 arguments; the BIN database file path (String), the metadata from 'open' function (Meta record) & either IPv4 or IPv6 address (String).
+-}
+getASN :: String -> Meta -> String -> IO String
+getASN myfile meta myip = do
+    result <- doQuery myfile meta myip 512
+    return (show (asn result))
+
+{-|
+    The 'getAS' function returns the autonomous system name for an IP address.
+    It takes 3 arguments; the BIN database file path (String), the metadata from 'open' function (Meta record) & either IPv4 or IPv6 address (String).
+-}
+getAS :: String -> Meta -> String -> IO String
+getAS myfile meta myip = do
+    result <- doQuery myfile meta myip 1024
+    return (show (as result))
+
+{-|
+    The 'getLastSeen' function returns the number of days last seen for an IP address.
+    It takes 3 arguments; the BIN database file path (String), the metadata from 'open' function (Meta record) & either IPv4 or IPv6 address (String).
+-}
+getLastSeen :: String -> Meta -> String -> IO String
+getLastSeen myfile meta myip = do
+    result <- doQuery myfile meta myip 2048
+    return (show (last_seen result))
+
+{-|
     The 'isProxy' function returns 0 if IP is not a proxy, 1 if is a proxy and not data center IP, 2 if is a proxy and is a data center IP, -1 if error.
     It takes 3 arguments; the BIN database file path (String), the metadata from 'open' function (Meta record) & either IPv4 or IPv6 address (String).
 -}
@@ -359,7 +444,7 @@ doQuery myfile meta myip mode = do
     if ipnum == -1
         then do
             let x = "INVALID IP ADDRESS"
-            return $ IP2ProxyRecord x x x x x x (-1)
+            return $ IP2ProxyRecord x x x x x x x x x x x (-1)
         else if ipnum >= from && ipnum <= to
             then do
                 return $ search4 contents (ipnum - (toInteger from)) (databasetype meta) 0 (ipv4databasecount meta) (ipv4databaseaddr meta) (ipv4indexbaseaddr meta) (ipv4columnsize meta) mode
