@@ -1,5 +1,9 @@
 # Revision history for ip2proxy
 
+## 2.1.0 -- 2019-07-22
+
+* Added support for 6to4 and Teredo.
+
 ## 2.0.0 -- 2019-05-27
 
 * Added support for PX5 to PX8 packages.
