@@ -1,5 +1,9 @@
 # Revision history for ip2proxy
 
+## 2.2.0 -- 2019-11-25
+
+* Reduce I/O.
+
 ## 2.1.0 -- 2019-07-22
 
 * Added support for 6to4 and Teredo.

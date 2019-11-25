@@ -99,7 +99,7 @@ getMeta = do
     The 'getModuleVersion' function returns a string containing the module version.
 -}
 getModuleVersion :: String
-getModuleVersion = "2.1.0"
+getModuleVersion = "2.2.0"
 
 {-|
     The 'getPackageVersion' function returns a string containing the package version.
@@ -140,6 +140,9 @@ readuint8 contents startpos = fromIntegral (runGet getWord8 (BS.drop (fromIntegr
 readuint32 :: BS.ByteString -> Int -> Int
 readuint32 contents startpos = fromIntegral (runGet getWord32le (BS.drop (fromIntegral startpos - 1) contents))
 
+readuint32row :: BS.ByteString -> Int -> Int
+readuint32row row startpos = fromIntegral (runGet getWord32le (BS.drop (fromIntegral startpos) row))
+
 getuint128 = do
     uint64A <- getWord64le
     uint64B <- getWord64le
@@ -170,6 +173,21 @@ readcolcountry contents dbtype rowoffset col = do
             let x2 = readstr contents (x0 + 3)
             (x1, x2)
 
+readcolcountryrow :: BS.ByteString -> BS.ByteString -> Int -> [Int] -> (String, String)
+readcolcountryrow contents row dbtype col = do
+    let x = "NOT SUPPORTED"
+    let [colpos] = take 1 (drop dbtype col)
+    
+    if colpos == 0
+        then do
+            (x, x)
+        else do
+            let coloffset = (colpos - 2) `shiftL` 2
+            let x0 = readuint32row row coloffset
+            let x1 = readstr contents  x0
+            let x2 = readstr contents (x0 + 3)
+            (x1, x2)
+
 readcolstring :: BS.ByteString -> Int -> Int -> [Int] -> String
 readcolstring contents dbtype rowoffset col = do
     let [colpos] = take 1 (drop dbtype col)
@@ -180,6 +198,20 @@ readcolstring contents dbtype rowoffset col = do
         else do
             let coloffset = (colpos - 1) `shiftL` 2
             readstr contents (readuint32 contents (rowoffset + coloffset))
+
+readcolstringrow :: BS.ByteString -> BS.ByteString -> Int -> [Int] -> String
+readcolstringrow contents row dbtype col = do
+    let [colpos] = take 1 (drop dbtype col)
+    
+    if colpos == 0
+        then do
+            "NOT SUPPORTED"
+        else do
+            let coloffset = (colpos - 2) `shiftL` 2
+            readstr contents (readuint32row row coloffset)
+
+countif :: (a -> Bool) -> [a] -> Int
+countif f = length . filter f 
 
 readrecord :: BS.ByteString -> Int -> Int -> Int -> IP2ProxyRecord
 readrecord contents dbtype rowoffset mode = do
@@ -207,44 +239,58 @@ readrecord contents dbtype rowoffset mode = do
     let as_field = 1024
     let lastseen_field = 2048
     
+    let allcols = (take 1 (drop dbtype country_position)) ++ (take 1 (drop dbtype region_position)) ++ (take 1 (drop dbtype city_position)) ++ (take 1 (drop dbtype isp_position)) ++ (take 1 (drop dbtype proxytype_position)) ++ (take 1 (drop dbtype domain_position)) ++ (take 1 (drop dbtype usagetype_position)) ++ (take 1 (drop dbtype asn_position)) ++ (take 1 (drop dbtype as_position)) ++ (take 1 (drop dbtype lastseen_position))
+    let cols = (countif (>0) allcols) `shiftL` 2
+    let row = BS.take (fromIntegral cols) (BS.drop (fromIntegral rowoffset - 1) contents)
+    
     let proxy_type = if (((.&.) mode proxytype_field) /= 0) || (((.&.) mode isproxy_field) /= 0)
-        then readcolstring contents dbtype rowoffset proxytype_position
+        -- then readcolstring contents dbtype rowoffset proxytype_position
+        then readcolstringrow contents row dbtype proxytype_position
         else ""
     
     let (country_short, country_long) = if (((.&.) mode countryshort_field) /= 0) || (((.&.) mode countrylong_field) /= 0) || (((.&.) mode isproxy_field) /= 0)
-        then readcolcountry contents dbtype rowoffset country_position
+        -- then readcolcountry contents dbtype rowoffset country_position
+        then readcolcountryrow contents row dbtype country_position
         else ("", "")
     
     let region = if ((.&.) mode region_field) /= 0
-        then readcolstring contents dbtype rowoffset region_position
+        -- then readcolstring contents dbtype rowoffset region_position
+        then readcolstringrow contents row dbtype region_position
         else ""
     
     let city = if ((.&.) mode city_field) /= 0
-        then readcolstring contents dbtype rowoffset city_position
+        -- then readcolstring contents dbtype rowoffset city_position
+        then readcolstringrow contents row dbtype city_position
         else ""
     
     let isp = if ((.&.) mode isp_field) /= 0
-        then readcolstring contents dbtype rowoffset isp_position
+        -- then readcolstring contents dbtype rowoffset isp_position
+        then readcolstringrow contents row dbtype isp_position
         else ""
     
     let domain = if ((.&.) mode domain_field) /= 0
-        then readcolstring contents dbtype rowoffset domain_position
+        -- then readcolstring contents dbtype rowoffset domain_position
+        then readcolstringrow contents row dbtype domain_position
         else ""
     
     let usage_type = if ((.&.) mode usagetype_field) /= 0
-        then readcolstring contents dbtype rowoffset usagetype_position
+        -- then readcolstring contents dbtype rowoffset usagetype_position
+        then readcolstringrow contents row dbtype usagetype_position
         else ""
     
     let asn = if ((.&.) mode asn_field) /= 0
-        then readcolstring contents dbtype rowoffset asn_position
+        -- then readcolstring contents dbtype rowoffset asn_position
+        then readcolstringrow contents row dbtype asn_position
         else ""
     
     let as = if ((.&.) mode as_field) /= 0
-        then readcolstring contents dbtype rowoffset as_position
+        -- then readcolstring contents dbtype rowoffset as_position
+        then readcolstringrow contents row dbtype as_position
         else ""
     
     let last_seen = if ((.&.) mode lastseen_field) /= 0
-        then readcolstring contents dbtype rowoffset lastseen_position
+        -- then readcolstring contents dbtype rowoffset lastseen_position
+        then readcolstringrow contents row dbtype lastseen_position
         else ""
     
     let is_proxy = if (country_short == "-") || (proxy_type == "-")
@@ -275,9 +321,11 @@ searchtree contents ipnum dbtype low high baseaddr colsize iptype mode = do
                 then do
                     if iptype == 4
                         then
-                            readrecord contents dbtype rowoffset mode
+                            -- readrecord contents dbtype rowoffset mode
+                            readrecord contents dbtype (rowoffset + 4) mode
                         else
-                            readrecord contents dbtype (rowoffset + 12) mode
+                            -- readrecord contents dbtype (rowoffset + 12) mode
+                            readrecord contents dbtype (rowoffset + 16) mode
                 else if ipnum < ipfrom
                     then
                         searchtree contents ipnum dbtype low (mid - 1) baseaddr colsize iptype mode
