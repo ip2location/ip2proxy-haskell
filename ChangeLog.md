@@ -1,5 +1,9 @@
 # Revision history for ip2proxy
 
+## 2.2.1  -- 2020-04-22
+
+* Modified version requirement for base module.
+
 ## 2.2.0 -- 2019-11-25
 
 * Reduce I/O.

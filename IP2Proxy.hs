@@ -1,7 +1,7 @@
 {-|
 Module      : IP2Proxy
 Description : IP2Proxy Haskell package
-Copyright   : (c) IP2Location, 2019
+Copyright   : (c) IP2Location, 2020
 License     : MIT
 Maintainer  : sales@ip2location.com
 Stability   : experimental
@@ -99,7 +99,7 @@ getMeta = do
     The 'getModuleVersion' function returns a string containing the module version.
 -}
 getModuleVersion :: String
-getModuleVersion = "2.2.0"
+getModuleVersion = "2.2.1"
 
 {-|
     The 'getPackageVersion' function returns a string containing the package version.
