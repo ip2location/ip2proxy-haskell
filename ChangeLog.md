@@ -1,5 +1,9 @@
 # Revision history for ip2proxy
 
+## 3.0.0  -- 2020-08-11
+
+* Added support for PX9 to PX10 packages.
+
 ## 2.2.1  -- 2020-04-22
 
 * Modified version requirement for base module.

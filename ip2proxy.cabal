@@ -10,13 +10,13 @@ name:                ip2proxy
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             2.2.1
+version:             3.0.0
 
 -- A short (one-line) description of the package.
 synopsis:            IP2Proxy Haskell package for proxy detection.
 
 -- A longer description of the package.
-description:      This Haskell package allows users to query an IP address to determine if it was being used as VPN anonymizer, open proxies, web proxies, Tor exits, data center, web hosting (DCH) range and search engine robots (SES).
+description:      This Haskell package allows users to query an IP address to determine if it was being used as VPN anonymizer, open proxies, web proxies, Tor exits, data center, web hosting (DCH) range, search engine robots (SES) and residential (RES).
 
 -- URL for the project homepage or repository.
 homepage:            https://www.ip2location.com
@@ -60,7 +60,7 @@ library
   -- other-extensions:    
   
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.11 && <=4.14, bytestring >=0.10 && <0.11, binary >=0.8.4 && <0.9, iproute >=1.7 && <1.8
+  build-depends:       base >=4.7 && <=4.14, bytestring >=0.10 && <0.11, binary >=0.8.8 && <0.9, iproute >=1.7 && <1.8
   
   -- Directories containing source files.
   -- hs-source-dirs:      
