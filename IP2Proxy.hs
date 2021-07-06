@@ -1,7 +1,7 @@
 {-|
 Module      : IP2Proxy
 Description : IP2Proxy Haskell package
-Copyright   : (c) IP2Location, 2020
+Copyright   : (c) IP2Location, 2021
 License     : MIT
 Maintainer  : sales@ip2location.com
 Stability   : experimental
@@ -10,7 +10,7 @@ This Haskell package allows users to query an IP address to determine if it was 
 
 IP2Proxy LITE BIN databases are available for free at http://lite.ip2location.com/
 -}
-module IP2Proxy (Meta, IP2ProxyRecord(..), getModuleVersion, getPackageVersion, getDatabaseVersion, open, getAll, getCountryShort, getCountryLong, getRegion, getCity, getISP, getProxyType, getDomain, getUsageType, getASN, getAS, getLastSeen, getThreat, isProxy) where
+module IP2Proxy (Meta, IP2ProxyRecord(..), getModuleVersion, getPackageVersion, getDatabaseVersion, open, getAll, getCountryShort, getCountryLong, getRegion, getCity, getISP, getProxyType, getDomain, getUsageType, getASN, getAS, getLastSeen, getThreat, getProvider, isProxy) where
 
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Lazy.Char8 as BS8
@@ -19,6 +19,7 @@ import Data.Bits
 import Data.Binary.Get
 import Data.IP
 import Control.Exception
+import System.Exit
 
 -- | Contains proxy results.
 data IP2ProxyRecord = IP2ProxyRecord {
@@ -46,6 +47,8 @@ data IP2ProxyRecord = IP2ProxyRecord {
     last_seen :: String,
     -- | Threat
     threat :: String,
+    -- | Provider
+    provider :: String,
     -- | Is proxy
     is_proxy :: Int
 } deriving (Show)
@@ -77,7 +80,9 @@ data Meta = Meta {
     -- | IPv4 column size
     ipv4columnsize :: Int,
     -- | IPv6 column size
-    ipv6columnsize :: Int
+    ipv6columnsize :: Int,
+    -- | Wrong BIN
+    wrongbin :: Int
 } deriving (Show)
 
 getMeta = do
@@ -92,16 +97,27 @@ getMeta = do
     ipv6databaseaddr <- getWord32le
     ipv4indexbaseaddr <- getWord32le
     ipv6indexbaseaddr <- getWord32le
+    productcode <- getWord8
+    producttype <- getWord8
+    filesize <- getWord32le
+    
+    -- check if is correct BIN (should be 2 for IP2Proxy BIN file), also checking for zipped file (PK being the first 2 chars)
+    let wrongbin = if (productcode /= 2 && databaseyear >= 21) || (databasetype == 80 && databasecolumn == 75)
+        then do
+            1
+        else do
+            0
+
     let ipv4columnsize = fromIntegral databasecolumn `shiftL` 2 -- 4 bytes each column
     let ipv6columnsize = 16 + ((fromIntegral databasecolumn - 1) `shiftL` 2) -- 4 bytes each column, except IPFrom column which is 16 bytes
-    let meta = Meta (fromIntegral databasetype) (fromIntegral databasecolumn) (fromIntegral databaseyear) (fromIntegral databasemonth) (fromIntegral databaseday) (fromIntegral ipv4databasecount) (fromIntegral ipv4databaseaddr) (fromIntegral ipv6databasecount) (fromIntegral ipv6databaseaddr) (fromIntegral ipv4indexbaseaddr) (fromIntegral ipv6indexbaseaddr) ipv4columnsize ipv6columnsize
+    let meta = Meta (fromIntegral databasetype) (fromIntegral databasecolumn) (fromIntegral databaseyear) (fromIntegral databasemonth) (fromIntegral databaseday) (fromIntegral ipv4databasecount) (fromIntegral ipv4databaseaddr) (fromIntegral ipv6databasecount) (fromIntegral ipv6databaseaddr) (fromIntegral ipv4indexbaseaddr) (fromIntegral ipv6indexbaseaddr) ipv4columnsize ipv6columnsize wrongbin
     return meta
 
 {-|
     The 'getModuleVersion' function returns a string containing the module version.
 -}
 getModuleVersion :: String
-getModuleVersion = "3.0.0"
+getModuleVersion = "3.1.0"
 
 {-|
     The 'getPackageVersion' function returns a string containing the package version.
@@ -134,10 +150,13 @@ ipStringToInteger = ipToInteger . read
 open :: String -> IO Meta
 open myfile = do
     contents <- BS.readFile myfile
-    return $ runGet getMeta contents
-
-readuint8 :: BS.ByteString -> Int -> Int
-readuint8 contents startpos = fromIntegral (runGet getWord8 (BS.drop (fromIntegral startpos - 1) contents))
+    let stuff = runGet getMeta contents
+    let iswrong = (show (wrongbin stuff))
+    if iswrong == "1"
+        then do
+            die(show "Incorrect IP2Proxy BIN file format. Please make sure that you are using the latest IP2Proxy BIN file.")
+        else do
+            return $ stuff
 
 readuint32 :: BS.ByteString -> Int -> Int
 readuint32 contents startpos = fromIntegral (runGet getWord32le (BS.drop (fromIntegral startpos - 1) contents))
@@ -160,21 +179,6 @@ readstr contents startpos = do
     str <- BS8.unpack (BS.take (fromIntegral len) (BS.drop (fromIntegral startpos + 1) contents))
     return str
 
-readcolcountry :: BS.ByteString -> Int -> Int -> [Int] -> (String, String)
-readcolcountry contents dbtype rowoffset col = do
-    let x = "NOT SUPPORTED"
-    let [colpos] = take 1 (drop dbtype col)
-    
-    if colpos == 0
-        then do
-            (x, x)
-        else do
-            let coloffset = (colpos - 1) `shiftL` 2
-            let x0 = readuint32 contents (rowoffset + coloffset)
-            let x1 = readstr contents  x0
-            let x2 = readstr contents (x0 + 3)
-            (x1, x2)
-
 readcolcountryrow :: BS.ByteString -> BS.ByteString -> Int -> [Int] -> (String, String)
 readcolcountryrow contents row dbtype col = do
     let x = "NOT SUPPORTED"
@@ -189,17 +193,6 @@ readcolcountryrow contents row dbtype col = do
             let x1 = readstr contents  x0
             let x2 = readstr contents (x0 + 3)
             (x1, x2)
-
-readcolstring :: BS.ByteString -> Int -> Int -> [Int] -> String
-readcolstring contents dbtype rowoffset col = do
-    let [colpos] = take 1 (drop dbtype col)
-    
-    if colpos == 0
-        then do
-            "NOT SUPPORTED"
-        else do
-            let coloffset = (colpos - 1) `shiftL` 2
-            readstr contents (readuint32 contents (rowoffset + coloffset))
 
 readcolstringrow :: BS.ByteString -> BS.ByteString -> Int -> [Int] -> String
 readcolstringrow contents row dbtype col = do
@@ -217,17 +210,18 @@ countif f = length . filter f
 
 readrecord :: BS.ByteString -> Int -> Int -> Int -> IP2ProxyRecord
 readrecord contents dbtype rowoffset mode = do
-    let country_position = [0, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3]
-    let region_position = [0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4]
-    let city_position = [0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5]
-    let isp_position = [0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6]
-    let proxytype_position = [0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-    let domain_position = [0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7]
-    let usagetype_position = [0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8]
-    let asn_position = [0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9]
-    let as_position = [0, 0, 0, 0, 0, 0, 0, 10, 10, 10, 10]
-    let lastseen_position = [0, 0, 0, 0, 0, 0, 0, 0, 11, 11, 11]
-    let threat_position = [0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12]
+    let country_position = [0, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+    let region_position = [0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+    let city_position = [0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+    let isp_position = [0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6]
+    let proxytype_position = [0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+    let domain_position = [0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7, 7]
+    let usagetype_position = [0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8]
+    let asn_position = [0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 9]
+    let as_position = [0, 0, 0, 0, 0, 0, 0, 10, 10, 10, 10, 10]
+    let lastseen_position = [0, 0, 0, 0, 0, 0, 0, 0, 11, 11, 11, 11]
+    let threat_position = [0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12, 12]
+    let provider_position = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13]
      
     let countryshort_field = 1
     let countrylong_field = 2
@@ -242,64 +236,58 @@ readrecord contents dbtype rowoffset mode = do
     let as_field = 1024
     let lastseen_field = 2048
     let threat_field = 4096
+    let provider_field = 8192
     
-    let allcols = (take 1 (drop dbtype country_position)) ++ (take 1 (drop dbtype region_position)) ++ (take 1 (drop dbtype city_position)) ++ (take 1 (drop dbtype isp_position)) ++ (take 1 (drop dbtype proxytype_position)) ++ (take 1 (drop dbtype domain_position)) ++ (take 1 (drop dbtype usagetype_position)) ++ (take 1 (drop dbtype asn_position)) ++ (take 1 (drop dbtype as_position)) ++ (take 1 (drop dbtype lastseen_position)) ++ (take 1 (drop dbtype threat_position))
+    let allcols = (take 1 (drop dbtype country_position)) ++ (take 1 (drop dbtype region_position)) ++ (take 1 (drop dbtype city_position)) ++ (take 1 (drop dbtype isp_position)) ++ (take 1 (drop dbtype proxytype_position)) ++ (take 1 (drop dbtype domain_position)) ++ (take 1 (drop dbtype usagetype_position)) ++ (take 1 (drop dbtype asn_position)) ++ (take 1 (drop dbtype as_position)) ++ (take 1 (drop dbtype lastseen_position)) ++ (take 1 (drop dbtype threat_position)) ++ (take 1 (drop dbtype provider_position))
     let cols = (countif (>0) allcols) `shiftL` 2
     let row = BS.take (fromIntegral cols) (BS.drop (fromIntegral rowoffset - 1) contents)
     
     let proxy_type = if (((.&.) mode proxytype_field) /= 0) || (((.&.) mode isproxy_field) /= 0)
-        -- then readcolstring contents dbtype rowoffset proxytype_position
         then readcolstringrow contents row dbtype proxytype_position
         else ""
     
     let (country_short, country_long) = if (((.&.) mode countryshort_field) /= 0) || (((.&.) mode countrylong_field) /= 0) || (((.&.) mode isproxy_field) /= 0)
-        -- then readcolcountry contents dbtype rowoffset country_position
         then readcolcountryrow contents row dbtype country_position
         else ("", "")
     
     let region = if ((.&.) mode region_field) /= 0
-        -- then readcolstring contents dbtype rowoffset region_position
         then readcolstringrow contents row dbtype region_position
         else ""
     
     let city = if ((.&.) mode city_field) /= 0
-        -- then readcolstring contents dbtype rowoffset city_position
         then readcolstringrow contents row dbtype city_position
         else ""
     
     let isp = if ((.&.) mode isp_field) /= 0
-        -- then readcolstring contents dbtype rowoffset isp_position
         then readcolstringrow contents row dbtype isp_position
         else ""
     
     let domain = if ((.&.) mode domain_field) /= 0
-        -- then readcolstring contents dbtype rowoffset domain_position
         then readcolstringrow contents row dbtype domain_position
         else ""
     
     let usage_type = if ((.&.) mode usagetype_field) /= 0
-        -- then readcolstring contents dbtype rowoffset usagetype_position
         then readcolstringrow contents row dbtype usagetype_position
         else ""
     
     let asn = if ((.&.) mode asn_field) /= 0
-        -- then readcolstring contents dbtype rowoffset asn_position
         then readcolstringrow contents row dbtype asn_position
         else ""
     
     let as = if ((.&.) mode as_field) /= 0
-        -- then readcolstring contents dbtype rowoffset as_position
         then readcolstringrow contents row dbtype as_position
         else ""
     
     let last_seen = if ((.&.) mode lastseen_field) /= 0
-        -- then readcolstring contents dbtype rowoffset lastseen_position
         then readcolstringrow contents row dbtype lastseen_position
         else ""
     
     let threat = if ((.&.) mode threat_field) /= 0
-        -- then readcolstring contents dbtype rowoffset threat_position
         then readcolstringrow contents row dbtype threat_position
+        else ""
+    
+    let provider = if ((.&.) mode provider_field) /= 0
+        then readcolstringrow contents row dbtype provider_position
         else ""
     
     let is_proxy = if (country_short == "-") || (proxy_type == "-")
@@ -308,7 +296,7 @@ readrecord contents dbtype rowoffset mode = do
             then 2
             else 1
     
-    IP2ProxyRecord country_short country_long region city isp proxy_type domain usage_type asn as last_seen threat is_proxy
+    IP2ProxyRecord country_short country_long region city isp proxy_type domain usage_type asn as last_seen threat provider is_proxy
 
 searchtree :: BS.ByteString -> Integer -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IP2ProxyRecord
 searchtree contents ipnum dbtype low high baseaddr colsize iptype mode = do
@@ -330,10 +318,8 @@ searchtree contents ipnum dbtype low high baseaddr colsize iptype mode = do
                 then do
                     if iptype == 4
                         then
-                            -- readrecord contents dbtype rowoffset mode
                             readrecord contents dbtype (rowoffset + 4) mode
                         else
-                            -- readrecord contents dbtype (rowoffset + 12) mode
                             readrecord contents dbtype (rowoffset + 16) mode
                 else if ipnum < ipfrom
                     then
@@ -342,7 +328,7 @@ searchtree contents ipnum dbtype low high baseaddr colsize iptype mode = do
                         searchtree contents ipnum dbtype (mid + 1) high baseaddr colsize iptype mode
         else do
             let x = "INVALID IP ADDRESS"
-            IP2ProxyRecord x x x x x x x x x x x x (-1)
+            IP2ProxyRecord x x x x x x x x x x x x x (-1)
         
 search4 :: BS.ByteString -> Integer -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IP2ProxyRecord
 search4 contents ipnum dbtype low high baseaddr indexbaseaddr colsize mode = do
@@ -378,7 +364,7 @@ tryfirst myIP = do
 -}
 getAll :: String -> Meta -> String -> IO IP2ProxyRecord
 getAll myfile meta myip = do
-    result <- doQuery myfile meta myip 8191
+    result <- doQuery myfile meta myip 16383
     return result
 
 {-|
@@ -490,6 +476,15 @@ getThreat myfile meta myip = do
     return (show (threat result))
 
 {-|
+    The 'getProvider' function returns the provider of the proxy.
+    It takes 3 arguments; the BIN database file path (String), the metadata from 'open' function (Meta record) & either IPv4 or IPv6 address (String).
+-}
+getProvider :: String -> Meta -> String -> IO String
+getProvider myfile meta myip = do
+    result <- doQuery myfile meta myip 8192
+    return (show (provider result))
+
+{-|
     The 'isProxy' function returns 0 if IP is not a proxy, 1 if is a proxy and not data center IP, 2 if is a proxy and is a data center IP, -1 if error.
     It takes 3 arguments; the BIN database file path (String), the metadata from 'open' function (Meta record) & either IPv4 or IPv6 address (String).
 -}
@@ -515,7 +510,7 @@ doQuery myfile meta myip mode = do
     if ipnum == -1
         then do
             let x = "INVALID IP ADDRESS"
-            return $ IP2ProxyRecord x x x x x x x x x x x x (-1)
+            return $ IP2ProxyRecord x x x x x x x x x x x x x (-1)
         else if ipnum >= fromV4Mapped && ipnum <= toV4Mapped
             then do
                 return $ search4 contents (ipnum - (toInteger fromV4Mapped)) (databasetype meta) 0 (ipv4databasecount meta) (ipv4databaseaddr meta) (ipv4indexbaseaddr meta) (ipv4columnsize meta) mode

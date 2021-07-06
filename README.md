@@ -18,7 +18,7 @@ Below are the methods supported in this package.
 |Method Name|Description|
 |---|---|
 |open|Open the IP2Proxy BIN data for lookup.|
-|getPackageVersion|Get the package version (1 to 10 for PX1 to PX10 respectively).|
+|getPackageVersion|Get the package version (1 to 11 for PX1 to PX11 respectively).|
 |getModuleVersion|Get the module version.|
 |getDatabaseVersion|Get the database version.|
 |isProxy|Check whether if an IP address was a proxy. Returned value:<ul><li>-1 : errors</li><li>0 : not a proxy</li><li>1 : a proxy</li><li>2 : a data center IP address or search engine robot</li></ul>|
@@ -35,6 +35,7 @@ Below are the methods supported in this package.
 |getAS|Return the autonomous system name of the proxy.|
 |getLastSeen|Return the number of days that the proxy was last seen.|
 |getThreat|Return the threat type of the proxy.|
+|getProvider|Return the provider of the proxy.|
 
 ## Example
 
@@ -43,7 +44,7 @@ import IP2Proxy
 
 main :: IO ()
 main = do
-    let myfile = "./IP2PROXY-IP-PROXYTYPE-COUNTRY-REGION-CITY-ISP-DOMAIN-USAGETYPE-ASN-LASTSEEN-THREAT-RESIDENTIAL.BIN"
+    let myfile = "./IP2PROXY-IP-PROXYTYPE-COUNTRY-REGION-CITY-ISP-DOMAIN-USAGETYPE-ASN-LASTSEEN-THREAT-RESIDENTIAL-PROVIDER.BIN"
     let ip = "199.83.103.79"
     meta <- open myfile
     
@@ -64,6 +65,7 @@ main = do
     putStrLn $ "as: " ++ (show (as result))
     putStrLn $ "last_seen: " ++ (show (last_seen result))
     putStrLn $ "threat: " ++ (show (threat result))
+    putStrLn $ "provider: " ++ (show (provider result))
     putStrLn $ "is_proxy: " ++ (show (is_proxy result))
 
     result <- getCountryShort myfile meta ip
@@ -90,6 +92,8 @@ main = do
     putStrLn $ "last_seen: " ++ result
     result <- getThreat myfile meta ip
     putStrLn $ "threat: " ++ result
+    result <- getProvider myfile meta ip
+    putStrLn $ "provider: " ++ result
     result <- isProxy myfile meta ip
     putStrLn $ "is_proxy: " ++ result
 ```

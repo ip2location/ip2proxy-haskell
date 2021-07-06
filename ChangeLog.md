@@ -1,5 +1,9 @@
 # Revision history for ip2proxy
 
+## 3.1.0  -- 2021-07-06
+
+* Added provider field and exception handling for incorrect BIN database.
+
 ## 3.0.0  -- 2020-08-11
 
 * Added support for PX9 to PX10 packages.
