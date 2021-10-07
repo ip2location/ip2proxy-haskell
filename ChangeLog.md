@@ -1,5 +1,9 @@
 # Revision history for ip2proxy
 
+## 3.2.0  -- 2021-10-07
+
+* Added support for IP2Proxy Web Service.
+
 ## 3.1.0  -- 2021-07-06
 
 * Added provider field and exception handling for incorrect BIN database.

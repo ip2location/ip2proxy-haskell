@@ -117,7 +117,7 @@ getMeta = do
     The 'getModuleVersion' function returns a string containing the module version.
 -}
 getModuleVersion :: String
-getModuleVersion = "3.1.0"
+getModuleVersion = "3.2.0"
 
 {-|
     The 'getPackageVersion' function returns a string containing the package version.

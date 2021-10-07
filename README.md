@@ -5,12 +5,17 @@ This Haskell package allows user to query an IP address if it was being used as 
 * Free IP2Proxy BIN Data: https://lite.ip2location.com
 * Commercial IP2Proxy BIN Data: https://www.ip2location.com/database/ip2proxy
 
+As an alternative, this package can also call the IP2Proxy Web Service. This requires an API key. If you don't have an existing API key, you can subscribe for one at the below:
+
+https://www.ip2location.com/web-service/ip2proxy
 
 ## Installation
 
 ```bash
 cabal install IP2Proxy
 ```
+
+## QUERY USING THE BIN FILE
 
 ## Methods
 Below are the methods supported in this package.
@@ -37,7 +42,7 @@ Below are the methods supported in this package.
 |getThreat|Return the threat type of the proxy.|
 |getProvider|Return the provider of the proxy.|
 
-## Example
+## Usage
 
 ```haskell
 import IP2Proxy
@@ -96,4 +101,48 @@ main = do
     putStrLn $ "provider: " ++ result
     result <- isProxy myfile meta ip
     putStrLn $ "is_proxy: " ++ result
+```
+
+## QUERY USING THE IP2PROXY PROXY DETECTION WEB SERVICE
+
+## Methods
+Below are the methods supported in this package.
+
+|Method Name|Description|
+|---|---|
+|openWS| Expects 3 input parameters:<ol><li>IP2Proxy API Key.</li><li>Package (PX1 - PX11)</li></li><li>Use HTTPS or HTTP</li></ol> |
+|lookUp|Query IP address. This method returns a WSResult record containing the proxy info. <ul><li>countryCode</li><li>countryName</li><li>regionName</li><li>cityName</li><li>isp</li><li>domain</li><li>usageType</li><li>asn</li><li>as</li><li>lastSeen</li><li>threat</li><li>proxyType</li><li>isProxy</li><li>provider</li><ul>|
+|getCredit|This method returns the web service credit balance in a WSResult record.|
+
+## Usage
+
+```haskell
+import IP2ProxyWebService
+import Data.Maybe
+
+main :: IO ()
+main = do
+    let apikey = "YOUR_API_KEY"
+    let apipackage = "PX11"
+    let usessl = True
+    let ip = "37.252.228.50"
+    wsconfig <- openWS apikey apipackage usessl
+    result <- lookUp wsconfig ip
+    putStrLn $ "response: " ++ (response result)
+    putStrLn $ "countryCode: " ++ (fromMaybe ("-") $ (countryCode result))
+    putStrLn $ "countryName: " ++ (fromMaybe ("-") $ (countryName result))
+    putStrLn $ "regionName: " ++ (fromMaybe ("-") $ (regionName result))
+    putStrLn $ "cityName: " ++ (fromMaybe ("-") $ (cityName result))
+    putStrLn $ "isp: " ++ (fromMaybe ("-") $ (isp result))
+    putStrLn $ "domain: " ++ (fromMaybe ("-") $ (domain result))
+    putStrLn $ "usageType: " ++ (fromMaybe ("-") $ (usageType result))
+    putStrLn $ "asn: " ++ (fromMaybe ("-") $ (asn result))
+    putStrLn $ "as: " ++ (fromMaybe ("-") $ (as result))
+    putStrLn $ "lastSeen: " ++ (fromMaybe ("-") $ (lastSeen result))
+    putStrLn $ "proxyType: " ++ (fromMaybe ("-") $ (proxyType result))
+    putStrLn $ "threat: " ++ (fromMaybe ("-") $ (threat result))
+    putStrLn $ "isProxy: " ++ (fromMaybe ("-") $ (isProxy result))
+    putStrLn $ "provider: " ++ (fromMaybe ("-") $ (provider result))
+    result <- getCredit wsconfig
+    putStrLn $ "Credit Balance: " ++ (response result)
 ```
