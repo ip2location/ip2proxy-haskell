@@ -9,4 +9,4 @@ This Haskell package allows user to query an IP address if it was being used as 
 Developer Documentation
 =====================
 
-To learn more about installation, usage, and code examples, please visit the developer documentation at [https://ip2location-haskell.readthedocs.io/en/latest/](https://ip2location-haskell.readthedocs.io/en/latest/).
+To learn more about installation, usage, and code examples, please visit the developer documentation at [https://ip2proxy-haskell.readthedocs.io/en/latest/](https://ip2proxy-haskell.readthedocs.io/en/latest/).
