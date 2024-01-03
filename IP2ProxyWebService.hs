@@ -2,7 +2,7 @@
 {-|
 Module      : IP2ProxyWebService
 Description : IP2Proxy Haskell package
-Copyright   : (c) IP2Location, 2021
+Copyright   : (c) IP2Location, 2018 - 2024
 License     : MIT
 Maintainer  : sales@ip2location.com
 Stability   : experimental
