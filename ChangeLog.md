@@ -1,5 +1,9 @@
 # Revision history for ip2proxy
 
+## 3.2.1  -- 2024-12-04
+
+* Fixed boundary cases. Fixed IPv6 address error when using IPv4 BIN.
+
 ## 3.2.0  -- 2021-10-07
 
 * Added support for IP2Proxy Web Service.

@@ -117,7 +117,7 @@ getMeta = do
     The 'getModuleVersion' function returns a string containing the module version.
 -}
 getModuleVersion :: String
-getModuleVersion = "3.2.0"
+getModuleVersion = "3.2.1"
 
 {-|
     The 'getPackageVersion' function returns a string containing the package version.
@@ -332,25 +332,33 @@ searchtree contents ipnum dbtype low high baseaddr colsize iptype mode = do
         
 search4 :: BS.ByteString -> Integer -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IP2ProxyRecord
 search4 contents ipnum dbtype low high baseaddr indexbaseaddr colsize mode = do
+    let ipnum2 = if (ipnum == 4294967295)
+        then ipnum - 1
+        else ipnum
+    
     if indexbaseaddr > 0
         then do
-            let indexpos = fromIntegral (((ipnum `rotateR` 16) `rotateL` 3) + (toInteger indexbaseaddr))
+            let indexpos = fromIntegral (((ipnum2 `rotateR` 16) `rotateL` 3) + (toInteger indexbaseaddr))
             let low2 = readuint32 contents indexpos
             let high2 = readuint32 contents (indexpos + 4)
-            searchtree contents ipnum dbtype low2 high2 baseaddr colsize 4 mode
+            searchtree contents ipnum2 dbtype low2 high2 baseaddr colsize 4 mode
         else
-            searchtree contents ipnum dbtype low high baseaddr colsize 4 mode
+            searchtree contents ipnum2 dbtype low high baseaddr colsize 4 mode
 
 search6 :: BS.ByteString -> Integer -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IP2ProxyRecord
 search6 contents ipnum dbtype low high baseaddr indexbaseaddr colsize mode = do
+    let ipnum2 = if (ipnum == 340282366920938463463374607431768211455)
+        then ipnum - 1
+        else ipnum
+    
     if indexbaseaddr > 0
         then do
-            let indexpos = fromIntegral (((ipnum `rotateR` 112) `rotateL` 3) + (toInteger indexbaseaddr))
+            let indexpos = fromIntegral (((ipnum2 `rotateR` 112) `rotateL` 3) + (toInteger indexbaseaddr))
             let low2 = readuint32 contents indexpos
             let high2 = readuint32 contents (indexpos + 4)
-            searchtree contents ipnum dbtype low2 high2 baseaddr colsize 6 mode
+            searchtree contents ipnum2 dbtype low2 high2 baseaddr colsize 6 mode
         else
-            searchtree contents ipnum dbtype low high baseaddr colsize 6 mode
+            searchtree contents ipnum2 dbtype low high baseaddr colsize 6 mode
 
 tryfirst myIP = do
     result <- try (evaluate (ipStringToInteger myIP)) :: IO (Either SomeException Integer)
@@ -523,5 +531,9 @@ doQuery myfile meta myip mode = do
                     else if ipnum >= fromV4Compatible && ipnum <= toV4Compatible
                         then do
                             return $ search4 contents ipnum (databasetype meta) 0 (ipv4databasecount meta) (ipv4databaseaddr meta) (ipv4indexbaseaddr meta) (ipv4columnsize meta) mode
-                        else do
-                            return $ search6 contents ipnum (databasetype meta) 0 (ipv6databasecount meta) (ipv6databaseaddr meta) (ipv6indexbaseaddr meta) (ipv6columnsize meta) mode
+                        else if (ipv6databasecount meta) == 0
+                            then do
+                                let x = "IPV6 ADDRESS MISSING IN IPV4 BIN"
+                                return $ IP2ProxyRecord x x x x x x x x x x x x x (-1)
+                            else do
+                                return $ search6 contents ipnum (databasetype meta) 0 (ipv6databasecount meta) (ipv6databaseaddr meta) (ipv6indexbaseaddr meta) (ipv6columnsize meta) mode

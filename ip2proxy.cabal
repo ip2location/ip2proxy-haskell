@@ -10,7 +10,7 @@ name:                ip2proxy
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             3.2.0
+version:             3.2.1
 
 -- A short (one-line) description of the package.
 synopsis:            IP2Proxy Haskell package for proxy detection.
@@ -60,7 +60,7 @@ library
   -- other-extensions:    
   
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.9 && <=4.15, bytestring >=0.10 && <0.12, binary >=0.8.4 && <0.9, iproute >=1.7 && <1.8, aeson >=1.5 && <1.6, http-types >=0.12 && <0.13, http-client >=0.6 && <0.7, http-client-tls >=0.3 && <0.4, uri-encode >=1.5 && <1.6
+  build-depends:       base >=4.9 && <=4.21, bytestring >=0.10 && <0.13, binary >=0.8.4 && <0.9, iproute >=1.7 && <1.8, aeson >=1.5 && <2.3, http-types >=0.12 && <0.13, http-client >=0.6 && <0.8, http-client-tls >=0.3 && <0.4, uri-encode >=1.5 && <1.6
   
   -- Directories containing source files.
   -- hs-source-dirs:      
