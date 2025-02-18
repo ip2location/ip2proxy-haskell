@@ -27,8 +27,8 @@ import IP2Proxy
 
 main :: IO ()
 main = do
-    let myfile = "./IP2PROXY-IP-PROXYTYPE-COUNTRY-REGION-CITY-ISP-DOMAIN-USAGETYPE-ASN-LASTSEEN-THREAT-RESIDENTIAL-PROVIDER.BIN"
-    let ip = "199.83.103.79"
+    let myfile = "./IP2PROXY-IP-PROXYTYPE-COUNTRY-REGION-CITY-ISP-DOMAIN-USAGETYPE-ASN-LASTSEEN-THREAT-RESIDENTIAL-PROVIDER-FRAUDSCORE.BIN"
+    let ip = "197.85.191.64"
     meta <- open myfile
     
     putStrLn $ "module_version: " ++ getModuleVersion
@@ -49,6 +49,7 @@ main = do
     putStrLn $ "last_seen: " ++ (show (last_seen result))
     putStrLn $ "threat: " ++ (show (threat result))
     putStrLn $ "provider: " ++ (show (provider result))
+    putStrLn $ "fraud_score: " ++ (show (fraud_score result))
     putStrLn $ "is_proxy: " ++ (show (is_proxy result))
 
     result <- getCountryShort myfile meta ip
@@ -77,6 +78,8 @@ main = do
     putStrLn $ "threat: " ++ result
     result <- getProvider myfile meta ip
     putStrLn $ "provider: " ++ result
+    result <- getFraudScore myfile meta ip
+    putStrLn $ "fraud_score: " ++ result
     result <- isProxy myfile meta ip
     putStrLn $ "is_proxy: " ++ result
 ```
